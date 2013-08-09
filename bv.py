@@ -1,3 +1,5 @@
+maxInt=2**64-1
+
 class Program:
 
     #var is a string indicating the variable
@@ -139,7 +141,7 @@ class Shl1(Op1):
 
     def run(self):
         def go(args):
-            return self.exp.run()(args) << 1
+            return (self.exp.run()(args) << 1) % maxInt
         return go
 
 class Shr1(Op1):
@@ -209,6 +211,6 @@ class Plus(Op2):
 
     def run(self):
         def go(args):
-            return self.exp0.run()(args) + self.exp1.run()(args)
+            return (self.exp0.run()(args) + self.exp1.run()(args)) % maxInt
         return go
     
