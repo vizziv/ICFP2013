@@ -102,6 +102,34 @@ def solveSize4Binary(progHash,ops):
     prog = prog % (ops[0],val[0],val[1])
     guessProg(progHash,prog)
 
+def fTrees(fs,size):
+    if fs:
+        if size==1:
+            return [('x',[],lambda x: x[0])]
+        elif size<=0:
+            return []
+        else:
+            fTs=[]
+            for f in fs:
+                if f in uOpDict:
+                    function=uOpDict[f]
+                    for fT in fTrees(fs,size-1):
+                        fTs.append(('(%s %s)' % (f,fT[0]),fT[1]+[f],compose(function,fT[2])))
+                elif f in binOpDict:
+                    if size>=2:
+                        function = binOpDict[f]
+                        for i in range(1,(size+1)//2):
+                            for fT1 in fTrees(fs,i):
+                                argsNeeded = 1+len([j for j in fT1[1] if j in binOpDict])
+                                for fT2 in fTrees(fs,size-1-i):
+                                    fTs.append(('(%s %s %s)' % (f,fT1[0],fT2[0]),fT1[1]+fT2[1]+[f],compose2List(function,fT1[2],fT2[2],argsNeeded)))
+                else:
+                    raise NotImplementedError
+        return fTs
+
+def fullFTrees(fs,size):
+    return [(1+len([j for j in fT[1] if j in binOpDict]),fT[0],fT[2]) for fT in fTrees(fs,size) if len(fs)==len(set(fT[1]))]
+
 
 def guessProg(progHash,prog):
     print "guessing %s for %s..." % (prog,progHash)
@@ -132,8 +160,18 @@ def evalHash(progHash,guesses):
         print j
         raise Exception
     return map(hex2int,j['outputs'])
-        
 
+def compose(*fs):
+    if len(fs)==0:
+        return lambda x: x
+    elif len(fs)==1:
+        return fs[0]
+    elif len(fs)==2:
+        return lambda x: fs[0](compose(*fs[1:])(x))
+
+def compose2List(f1,f2a,f2b,cutoff):
+    return lambda l: f1(f2a(l[:cutoff]),f2b(l[cutoff:]))
+        
 def int2hex(x):
     return hex(x)[2:].rjust(16,'0')
 
