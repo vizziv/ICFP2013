@@ -1,6 +1,7 @@
 import Data.Word
 import Text.Printf
 
+data Program = Program Identifier Expression
 data Expression = Zero | One
                 | Variable Identifier
                 | If Expression Expression Expression
@@ -12,6 +13,10 @@ data UnaryOp = UnaryOp String (Word64 -> Word64)
 data BinaryOp = BinaryOp String (Word64 -> Word64 -> Word64)
 
 type Identifier = String
+
+instance Show Program where
+  show (Program param body) =
+    printf "(lambda (%s) %s)" param (show body)
 
 instance Show Expression where
   show Zero = "0"
@@ -36,6 +41,9 @@ instance Show UnaryOp where
 instance Show BinaryOp where
   show (BinaryOp name _) = name
 
+psize :: Program -> Int
+psize (Program param body) = 1 + size body
+
 size :: Expression -> Int
 size Zero = 1
 size One = 1
@@ -46,6 +54,6 @@ size (UnaryForm op arg) = 1 + size arg
 size (BinaryForm op arg1 arg2) = 1 + size arg1 + size arg2
 
 main = do
-  let expr = If (Variable "x") One Zero
-  putStrLn $ show expr
-  putStrLn $ show $ size expr
+  let program = Program "x" (If (Variable "x") One Zero)
+  putStrLn $ show program
+  putStrLn $ show $ psize program
