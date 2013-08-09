@@ -117,7 +117,7 @@ class Op2(Expression):
     def __init__(self, exp0, exp1):
         self.exp0=exp0
         self.exp1=exp1
-        self.size = 1 + exp1.size + exp2.size
+        self.size = 1 + exp0.size + exp1.size
 
 class Not(Op1):
 
