@@ -3,6 +3,7 @@
 import json
 import requests
 import time
+import itertools
 
 auth="?auth=0232BqcaQdAREtz6KHAt3AUaxcZQVpSKqgyW3A9cvpsH1H"
 urlBase="http://icfpc2013.cloudapp.net/"
@@ -14,8 +15,14 @@ def getproblems():
     r = requests.get(urlBase + "myproblems"+auth)
     return r.json()
 
-def unsolved(size=None):
-    return [i for i in getproblems() if ('solved' not in i or not i['solved']) and ('timeLeft' not in i or i['timeLeft']>0) and (size is None or i['size']==size)]
+def unsolved(size=None,pred=None):
+    return [i for i in getproblems() if ('solved' not in i or not i['solved']) and ('timeLeft' not in i or i['timeLeft']>0) and (size is None or i['size']==size) and (pred is None or pred(i))]
+
+def nofolds(p):
+    return all(o not in p['operators'] for o in ['fold','tfold'])
+
+def easy(p):
+    return all(o not in p['operators'] for o in ['fold','tfold','if0'])
 
 def status():
     r = requests.get(urlBase + "status"+auth)
@@ -31,7 +38,7 @@ def train(size=None,ops=None):
     return r.json()
 
 def solveSize3(progHash,ops):
-    op = uOpDict[ops[0]]
+    op = unOpDict[ops[0]]
     guess = "9e9e9e9e9e9e9e9e"
     prog = '(lambda (x) (%s %s))'
     evalDict={
@@ -69,7 +76,7 @@ def solveSize3(progHash,ops):
         raise Exception
 
 def solveSize4OneUnary(progHash,ops):
-    op = uOpDict[ops[0]]
+    op = unOpDict[ops[0]]
     guess = "9e9e9e9e9e9e9e9e"
     prog = '(lambda (x) (%s (%s %s)))'
     ans=evalHash(progHash,[guess])[0]
@@ -78,8 +85,8 @@ def solveSize4OneUnary(progHash,ops):
     guessProg(progHash,prog)
 
 def solveSize4TwoUnary(progHash,ops):
-    op0=uOpDict[ops[0]]
-    op1=uOpDict[ops[1]]
+    op0=unOpDict[ops[0]]
+    op1=unOpDict[ops[1]]
     guesses = ["9e9e9e9e9e9e9e9e","abcabcabcabcabca","1234567890123456"]
     prog = '(lambda (x) (%s (%s %s)))'
     anss=tuple(evalHash(progHash,guesses))
@@ -102,37 +109,101 @@ def solveSize4Binary(progHash,ops):
     prog = prog % (ops[0],val[0],val[1])
     guessProg(progHash,prog)
 
+def solveSmallEasy(progDesc):
+    print "solving program %s" % progDesc['id']
+    possibleProgs = progs(progDesc['operators'],progDesc['size'])
+    for i in xrange(10):
+        guesses=map(int2hex,xrange((3**35)*i-(2**i+1)*128,(3**35)*i+(2**i+1)*128,2**i+1))
+        print "making guesses [%s,...,%s] ... " % (guesses[0],guesses[-1])
+        anss = evalHash(progDesc['id'],guesses)
+        possibleProgs = [prog for prog in possibleProgs
+                if all(prog[1](hex2int(guess))==ans for (guess, ans) in zip(guesses,anss))]
+        if len(possibleProgs)==0:
+            print "no programs are possible!"
+            raise Exception
+        if len(possibleProgs)<=4**i:
+            possibleProgs2=possibleProgs[:]
+            possibleProgStrings = [x[0] for x in possibleProgs]
+            for prog in possibleProgs2:
+                if prog[0] in possibleProgStrings:
+                    mism = guessProg(progDesc['id'],prog[0],exception=False)
+                    if mism is None:
+                        return
+                    else:
+                        possibleProgs = [prog for prog in possibleProgs if prog[1](hex2int(mism[0]))==hex2int(mism[1])]
+                        possibleProgStrings = [x[0] for x in possibleProgs]
+                        time.sleep(5)
+        print "possibilities:\n"+"\n".join([p[0] for p in possibleProgs])
+        time.sleep(10)
+    print "couldn't determine the program!"
+    raise Exception
+
+def arity(f):
+    if f in unOpDict:
+        return 0
+    elif f in binOpDict:
+        return 1
+    elif f=="if0":
+        return 2
+    else:
+        raise NotImplementedError
+            
+
 def fTrees(fs,size):
     if fs:
         if size==1:
-            return [('x',[],lambda x: x[0])]
+            return [('%s',[],lambda x: x[0])]
         elif size<=0:
             return []
         else:
             fTs=[]
             for f in fs:
-                if f in uOpDict:
-                    function=uOpDict[f]
+                if f in unOpDict:
+                    function=unOpDict[f]
                     for fT in fTrees(fs,size-1):
                         fTs.append(('(%s %s)' % (f,fT[0]),fT[1]+[f],compose(function,fT[2])))
                 elif f in binOpDict:
-                    if size>=2:
+                    if size>=3:
                         function = binOpDict[f]
                         for i in range(1,(size+1)//2):
                             for fT1 in fTrees(fs,i):
-                                argsNeeded = 1+len([j for j in fT1[1] if j in binOpDict])
+                                argsNeeded = 1+sum(map(arity,fT1[1]))
                                 for fT2 in fTrees(fs,size-1-i):
                                     fTs.append(('(%s %s %s)' % (f,fT1[0],fT2[0]),fT1[1]+fT2[1]+[f],compose2List(function,fT1[2],fT2[2],argsNeeded)))
+                elif f=="if0":
+                    if size>=4:
+                        function = if0
+                        for i in range(1,size-2):
+                            for fT1 in fTrees(fs,i):
+                                cutoff1 = 1+sum(map(arity,fT1[1]))
+                                for j in range(1,size-1-i):
+                                    for fT2 in fTrees(fs,j):
+                                        cutoff2 = cutoff1+1+sum(map(arity,fT2[1]))
+                                        k=size-1-i-j
+                                        for fT3 in fTrees(fs,k):
+                                            fTs.append(('(if0 %s %s %s)' % (fT1[0],fT2[0],fT3[0]),fT1[1]+fT2[1]+fT3[1]+[f],compose3List(if0,fT1[2],fT2[2],fT3[2],cutoff1,cutoff2)))
+
+
                 else:
-                    raise NotImplementedError
+                    raise NotImplementedError, f
         return fTs
 
 def fullFTrees(fs,size):
-    return [(1+len([j for j in fT[1] if j in binOpDict]),fT[0],fT[2]) for fT in fTrees(fs,size) if len(fs)==len(set(fT[1]))]
+    return [(1+sum(map(arity,fT[1])),fT[0],fT[2]) for fT in fTrees(fs,size) if len(fs)==len(set(fT[1]))]
+
+def progs(fs,size):
+    def subInLambda(function,args):
+        return lambda x: function([i if i!='x' else x for i in args])
+    primitives = [0,1,'x']
+    progs = []
+    for fT in fullFTrees(fs,size-1):
+        for args in itertools.product(primitives,repeat=fT[0]):
+            progs.append((("(lambda (x) "+fT[1]+")") % args,subInLambda(fT[2],args)))
+    return progs
 
 
-def guessProg(progHash,prog):
-    print "guessing %s for %s..." % (prog,progHash)
+def guessProg(progHash,prog,exception=True):
+    print "guessing %s for %s..." % (prog,progHash),
     guessDict={
             'id':progHash,
             'program':prog,
@@ -144,9 +215,11 @@ def guessProg(progHash,prog):
         return
     else:
         print "***FAIL***"
-        print guessDict
-        print j
-        raise Exception
+        print guessDict['program'],j['values']
+        if exception:
+            raise Exception
+        else:
+            return j['values'][:2]
 
 def evalHash(progHash,guesses):
     evalDict={
@@ -171,9 +244,14 @@ def compose(*fs):
 
 def compose2List(f1,f2a,f2b,cutoff):
     return lambda l: f1(f2a(l[:cutoff]),f2b(l[cutoff:]))
+
+def compose3List(f1,f2a,f2b,f2c,cutoff1,cutoff2):
+    return lambda l: f1(f2a(l[:cutoff1]),f2b(l[cutoff1:cutoff2]),f2c(l[cutoff2:]))
         
 def int2hex(x):
-    return hex(x)[2:].rjust(16,'0')
+    if x<0:
+        x=maxInt+x
+    return hex(x).lstrip('0x').rstrip('L').rjust(16,'0')
 
 def hex2int(x):
     return int(x,16)
@@ -205,7 +283,10 @@ def bitxor(x,y):
 def plus(x,y):
     return (x + y) % maxInt
 
-uOpDict = {
+def if0(x,y,z):
+    return y if x==0 else z
+
+unOpDict = {
         "shr1" : shr1,
         "shr4" : shr4,
         "shr16" : shr16,
@@ -219,4 +300,3 @@ binOpDict = {
         "xor" : bitxor,
         "plus" : plus,
         }
-
