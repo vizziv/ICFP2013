@@ -10,7 +10,7 @@ class Program:
         self.size = exp.size + 1
 
     def __str__(self):
-        return "(lambda("+str(self.var)+")"+str(self.exp)+")"
+        return "(lambda ("+str(self.var)+") "+str(self.exp)+")"
 
     def run(self, value):
         return self.exp.run()({self.var.value: value})
@@ -74,7 +74,7 @@ class If(Expression):
         self.size = 1 + exp0.size + exp1.size + exp2.size
 
     def __str__(self):
-        return "(if0"+str(self.exp0)+str(self.exp1)+str(self.exp2)+")"
+        return "(if0 "+str(self.exp0)+" "+str(self.exp1)+" "+str(self.exp2)+")"
 
     def run(self):
         #assign arg to exp0 and return exp1 or exp2's run()
@@ -96,20 +96,17 @@ class Fold(Expression):
         self.size = 2 + exp0.size + exp1.size + exp2.size
 
     def __str__(self):
-        return "(fold"+str(self.exp0)+str(self.exp1)+"(lambda(" \
-               +str(self.var0)+" "+str(self.var1)+")"+str(self.exp2)+"))"
+        return "(fold "+str(self.exp0)+" "+str(self.exp1)+" (lambda (" \
+               +str(self.var0)+" "+str(self.var1)+") "+str(self.exp2)+"))"
 
     def run(self):
         def go(args):
-            print "calling exp1.run("+str(args)+")"
             acc = self.exp1.run()(args)
-            print "calling exp0.run("+str(args)+")"
             e0 = self.exp0.run()(args)
             for i in range(0, 8):
                 newargs = args.copy()
                 newargs[self.var0.value] = (e0 >> i*8) & 0xFF
                 newargs[self.var1.value] = acc
-                print "calling exp2.run("+str(newargs)+")"
                 acc = self.exp2.run()(newargs)
             return acc
         return go
@@ -131,7 +128,7 @@ class Op2(Expression):
 class Not(Op1):
 
     def __str__(self):
-        return "(not"+str(self.exp)+")"
+        return "(not "+str(self.exp)+")"
 
     def run(self):
         def go(args):
@@ -141,7 +138,7 @@ class Not(Op1):
 class Shl1(Op1):
 
     def __str__(self):
-        return "(shl1"+str(self.exp)+")"
+        return "(shl1 "+str(self.exp)+")"
 
     def run(self):
         def go(args):
@@ -151,7 +148,7 @@ class Shl1(Op1):
 class Shr1(Op1):
 
     def __str__(self):
-        return "(shr1"+str(self.exp)+")"
+        return "(shr1 "+str(self.exp)+")"
 
     def run(self):
         def go(args):
@@ -161,7 +158,7 @@ class Shr1(Op1):
 class Shr4(Op1):
 
     def __str__(self):
-        return "(shr4"+str(self.exp)+")"
+        return "(shr4 "+str(self.exp)+")"
 
     def run(self):
         def go(args):
@@ -171,7 +168,7 @@ class Shr4(Op1):
 class Shr16(Op1):
 
     def __str__(self):
-        return "(shr16"+str(self.exp)+")"
+        return "(shr16 "+str(self.exp)+")"
 
     def run(self):
         def go(args):
@@ -181,7 +178,7 @@ class Shr16(Op1):
 class And(Op2):
 
     def __str__(self):
-        return "(and"+str(self.exp0)+str(self.exp1)+")"
+        return "(and "+str(self.exp0)++" "+str(self.exp1)+")"
 
     def run(self):
         def go(args):
@@ -191,7 +188,7 @@ class And(Op2):
 class Or(Op2):
 
     def __str__(self):
-        return "(or"+str(self.exp0)+str(self.exp1)+")"
+        return "(or "+str(self.exp0)+" "+str(self.exp1)+")"
 
     def run(self):
         def go(args):
@@ -201,7 +198,7 @@ class Or(Op2):
 class Xor(Op2):
 
     def __str__(self):
-        return "(xor"+str(self.exp0)+str(self.exp1)+")"
+        return "(xor "+str(self.exp0)+" "+str(self.exp1)+")"
 
     def run(self):
         def go(args):
@@ -211,7 +208,7 @@ class Xor(Op2):
 class Plus(Op2):
 
     def __str__(self):
-        return "(plus"+str(self.exp0)+str(self.exp1)+")"
+        return "(plus "+str(self.exp0)+" "+str(self.exp1)+")"
 
     def run(self):
         def go(args):
