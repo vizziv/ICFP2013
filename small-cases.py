@@ -63,7 +63,6 @@ def solveSmallEasy(progDesc):
                         possibleProgStrings = [x[0] for x in possibleProgs]
                         time.sleep(5)
         print "possibilities:\n"+"\n".join([p[0] for p in possibleProgs])
-        time.sleep(10)
     print "couldn't determine the program!"
     raise Exception
 
@@ -121,7 +120,18 @@ def progs(fs,size):
 def stringify(expr):
     f,n,args = expr
     if f==None:
-        return str(args)
+        if args==maxInt-1:
+            return "(not 0)"
+        elif args==maxInt-2:
+            return "(not 1)"
+        elif args==maxInt-3:
+            return "(not (shl1 1))"
+        elif args==2:
+            return "(shl1 1)"
+        elif args==4:
+            return "(shl1 (shl1 1))"
+        else:
+            return str(args)
     else:
         return "("+f+" "+" ".join(map(stringify,args))+")"
 
@@ -144,12 +154,20 @@ def lambdify(expr):
 def canonicalize(expr,subbed=False):
     f,n,args = expr
     if 'sort' in dir(args):
-        args=[canonicalize(a) for a in args]
+        args=[canonicalize(a,subbed) for a in args]
         if f in unOpDict:
-            if args[0][2] in [0,1]:
+            if isint(args[0][2]):
                 return (None,1,unOpDict[f](args[0][2]))
+            elif f=='not' and args[0][0]=='not':
+                return args[0][2][0]
+            elif f=='not' and args[0][0] in unOpDict:
+                return (args[0][0],n,[(f,args[0][1],args[0][2])])
+            elif f=='shl16' and args[0][0] in ['shl1','shl4']:
+                return (args[0][0],n,[(f,args[0][1],args[0][2])])
+            elif f=='shl4' and args[0][0]=='shl1':
+                return (args[0][0],n,[(f,args[0][1],args[0][2])])
         elif f in binOpDict:
-            if args[0][2] in [0,1] and args[1][2] in [0,1]:
+            if isint(args[0][2]) and isint(args[1][2]):
                 return (None,1,binOpDict[f](args[0][2],args[1][2]))
             elif args[0][2]==0:
                 if f=="and":
@@ -172,16 +190,21 @@ def canonicalize(expr,subbed=False):
         elif f=="if0":
             if args[0][2]==0:
                 return args[1]
-            elif args[0][2]==1:
+            elif isint(args[0][2]):
                 return args[2]
             elif subbed and args[1]==args[2]:
                 return args[1]
-            elif args[0][2]=='x' and args[1][2]=='x' and args[2][2]=='0':
+            elif subbed and args[0][2]==args[1][2] and args[2][2]==0:
                 return (None,0,0)
+            elif subbed and args[0][2]==args[2][2] and args[1][2]==0:
+                return (None,1,'x')
     return (expr[0],expr[1],args)
 
 def nub(l,i):
     return {str(j[i]):j for j in l}.values()
+
+def isint(x):
+    return type(x) in map(type,[0,0L])
 
 def subInExpr(expr,args):
     f, n, aas = expr
@@ -212,7 +235,10 @@ def guessProg(progHash,prog,exception=True):
         return
     else:
         print "***FAIL***"
-        print guessDict['program'],j['values']
+        try:
+            print guessDict['program'],j['values']
+        except:
+            print guessDict, j
         if exception:
             raise Exception
         else:
