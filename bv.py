@@ -1,4 +1,4 @@
-maxInt=2**64-1
+maxInt=2**64
 
 class Program:
 

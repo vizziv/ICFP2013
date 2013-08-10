@@ -1,4 +1,4 @@
-#import small_cases as sc
+from small_cases import *
 from bv import *
 
 '''size is an int meaning program size
@@ -41,6 +41,8 @@ def gen_tfold_8(size, ops, all_vars):
             for a in size1:
                 for b in size1:
                     exps.append(binops[op](a, b))
+        elif op == 'tfold':
+            pass
         else:
             raise Exception
     return exps
@@ -55,6 +57,41 @@ def gen_size_2(ops, all_vars):
             exps += [unops[op](e) for e in gen_size_1(all_vars)]
     return exps
 
+'''mostly copied from small_cases.solveSmallEasy()'''
+def solve_small_tfold(progDesc):
+    print "solving program %s" % progDesc['id']
+    possibleProgs = gen_tfold_prog(progDesc['size'],progDesc['operators'])
+    for i in xrange(10):
+        guesses=map(int2hex,xrange((3**35)*i-(2**i+1)*128,(3**35)*i+(2**i+1)*128,2**i+1))
+        print "making guesses [%s,...,%s] ... " % (guesses[0],guesses[-1])
+        anss = evalHash(progDesc['id'],guesses)
+        #print zip(guesses, anss)
+        for p in possibleProgs:
+            print p
+##        poss = []
+##        for prog in possibleProgs:
+##            if all(prog.run(hex2int(guess))==ans for (guess, ans) in zip(guesses, anss)):
+##                poss.append(prog)
+        possibleProgs = [prog for prog in possibleProgs
+                if all(prog.run(hex2int(guess))==ans for (guess, ans) in zip(guesses,anss))]
+        if len(possibleProgs)==0:
+            print "no programs are possible!"
+            raise Exception
+        if len(possibleProgs)<=4**i:
+            possibleProgs2=possibleProgs[:]
+            possibleProgStrings = [str(x) for x in possibleProgs]
+            for prog in possibleProgs2:
+                if str(prog) in possibleProgStrings:
+                    mism = guessProg(progDesc['id'],str(prog),exception=False)
+                    if mism is None:
+                        return
+                    else:
+                        possibleProgs = [prog for prog in possibleProgs if prog.run(hex2int(mism[0]))==hex2int(mism[1])]
+                        possibleProgStrings = [str(prog) for x in possibleProgs]
+                        time.sleep(10)
+        print "possibilities:\n"+"\n".join([str(prog) for p in possibleProgs])
+    print "couldn't determine the program!"
+    raise Exception
 
 unops = {
         "shr1" : Shr1,

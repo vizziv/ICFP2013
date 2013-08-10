@@ -2,7 +2,7 @@
 
 import itertools
 import json
-import regex as re
+#import regex as re
 import requests
 import time
 
@@ -31,7 +31,8 @@ def status():
     return r.json()
 
 def train(size=None,ops=None):
-    '''Grab a training problem with size `size` and operations `ops`.'''
+    '''Grab a training problem with size `size` and operations `ops`.
+    Example syntax: t = train(8, ["tfold"]) (the double quotes matter)'''
     requestDict = {}
     if size is not None:
         requestDict['size']=size
