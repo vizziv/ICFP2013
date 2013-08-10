@@ -1,7 +1,6 @@
 import Control.Monad
 import Control.Monad.Reader
 import Data.Bits
-import Data.List
 import Data.Maybe (fromJust)
 import Data.Word (Word64)
 import Text.Printf (printf)
@@ -69,6 +68,8 @@ getVar x = asks $ fromJust . lookup x
 putVar :: Identifier -> Word64 -> Context a -> Context a
 putVar param value = local ((param,value):)
 
+-- Least significant is first.
+-- e.g. toBytes 1023 = [255,3,0,0..]
 toBytes :: Word64 -> [Word64]
 toBytes = take 8 . toBytesH where
     toBytesH x = let (d,m) = x `divMod` 256 in m : toBytesH d
@@ -86,8 +87,11 @@ eeval (If cond zero nonzero) = do
 eeval (Fold bytes initial param1 param2 body) = do
   bs <- eeval bytes
   i <- eeval initial
+  -- We have a left fold in foldM, but they specify a right fold.
+  -- Our list from toBytes is least-significant first, so we flip the arguments of the operation.
+  -- That is, the accumulator (param2) is on the left, and the current byte (param1) is on the right.
   let op acc b = putVar param2 acc . putVar param1 b $ eeval body
-  foldM op i . reverse . toBytes $ bs
+  foldM op i . toBytes $ bs
 eeval (UnaryForm (UnaryOp _ op) arg) = liftM op (eeval arg)
 eeval (BinaryForm (BinaryOp _ op) arg1 arg2) = liftM2 op (eeval arg1) (eeval arg2)
 
@@ -104,8 +108,8 @@ x = Variable X
 y = Variable Y
 z = Variable Z
 
-main = print $ eval
-       (Program X
-        (Fold x Zero Y Z
-         (plus y z)))
-       363
+-- Reverses the bytes of the input.
+-- The program is equivalent to foldl (\xs x -> xs*256 + x) 0 . toBytes
+main = print $ eval (Program X $ Fold x Zero Y Z
+                     (plus y $ shl1 . shl1 . shl1 . shl1 . shl1 . shl1 . shl1 . shl1 $ z)
+                    ) $ 2553
