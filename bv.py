@@ -132,7 +132,7 @@ class Not(Op1):
 
     def run(self):
         def go(args):
-            return ~self.exp.run()(args)
+            return maxInt - 1 - self.exp.run()(args)
         return go
 
 class Shl1(Op1):
