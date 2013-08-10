@@ -99,16 +99,20 @@ class Fold(Expression):
         return "(fold"+str(self.exp0)+str(self.exp1)+"(lambda(" \
                +str(self.var0)+" "+str(self.var1)+")"+str(self.exp2)+"))"
 
-    #I know this doesn't work
-    #but I'm sleepy and confused
     def run(self):
-        raise NotImplementedError
         def go(args):
+            print "calling exp1.run("+str(args)+")"
             acc = self.exp1.run()(args)
+            print "calling exp0.run("+str(args)+")"
             e0 = self.exp0.run()(args)
             for i in range(0, 8):
-                acc = self.exp2.run()((e0 >> i*8) & 0xFF, acc)
+                newargs = args.copy()
+                newargs[self.var0.value] = (e0 >> i*8) & 0xFF
+                newargs[self.var1.value] = acc
+                print "calling exp2.run("+str(newargs)+")"
+                acc = self.exp2.run()(newargs)
             return acc
+        return go
             
 
 class Op1(Expression):
