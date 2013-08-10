@@ -272,8 +272,8 @@ def compose3List(f1,f2a,f2b,f2c,cutoff1,cutoff2):
     return lambda l: f1(f2a(l[:cutoff1]),f2b(l[cutoff1:cutoff2]),f2c(l[cutoff2:]))
         
 def int2hex(x):
-    if x<0:
-        x=maxInt+x
+    if x<0 or x>maxInt
+        x=x % maxInt
     return hex(x).lstrip('0x').rstrip('L').rjust(16,'0')
 
 def hex2int(x):
