@@ -178,7 +178,7 @@ class Shr16(Op1):
 class And(Op2):
 
     def __str__(self):
-        return "(and "+str(self.exp0)++" "+str(self.exp1)+")"
+        return "(and "+str(self.exp0)+" "+str(self.exp1)+")"
 
     def run(self):
         def go(args):
