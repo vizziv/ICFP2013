@@ -63,7 +63,7 @@ def solveSmallEasy(progDesc):
                     else:
                         possibleProgs = [prog for prog in possibleProgs if prog[1](hex2int(mism[0]))==hex2int(mism[1])]
                         possibleProgStrings = [x[0] for x in possibleProgs]
-                        time.sleep(5)
+                        time.sleep(10)
         print "possibilities:\n"+"\n".join([p[0] for p in possibleProgs])
     print "couldn't determine the program!"
     raise Exception
@@ -276,7 +276,7 @@ def compose3List(f1,f2a,f2b,f2c,cutoff1,cutoff2):
     return lambda l: f1(f2a(l[:cutoff1]),f2b(l[cutoff1:cutoff2]),f2c(l[cutoff2:]))
         
 def int2hex(x):
-    if x<0 or x>maxInt
+    if x<0 or x>maxInt:
         x=x % maxInt
     return hex(x).lstrip('0x').rstrip('L').rjust(16,'0')
 
