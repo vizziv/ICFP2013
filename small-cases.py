@@ -17,6 +17,7 @@ def getproblems():
     return r.json()
 
 def unsolved(size=None,pred=None):
+    '''Returns problems of size `size` (None returns all) and matching predicate pred (e.g. nofolds)'''
     return [i for i in getproblems() if ('solved' not in i or not i['solved']) and ('timeLeft' not in i or i['timeLeft']>0) and (size is None or i['size']==size) and (pred is None or pred(i))]
 
 def nofolds(p):
@@ -30,6 +31,7 @@ def status():
     return r.json()
 
 def train(size=None,ops=None):
+    '''Grab a training problem with size `size` and operations `ops`.'''
     requestDict = {}
     if size is not None:
         requestDict['size']=size
@@ -223,6 +225,7 @@ def subInExpr(expr,args):
             
 
 def guessProg(progHash,prog,exception=True):
+    '''Make a guess as to what the program with id progHash is.  prog should be a string (e.g. "(lambda (x) x)").  If exception is True (default), raise Exception if the guess is wrong; otherwise, simply return the program's input and output that proves it.'''
     print "guessing %s for %s..." % (prog,progHash),
     guessDict={
             'id':progHash,
@@ -245,6 +248,7 @@ def guessProg(progHash,prog,exception=True):
             return j['values'][:2]
 
 def evalHash(progHash,guesses):
+    '''Evaluate a program with id progHash on guesses.  guesses should be a list of strings (e.g. ["0000000000000000","1234567890123456"])'''
     evalDict={
             'id':progHash,
             'arguments':guesses
