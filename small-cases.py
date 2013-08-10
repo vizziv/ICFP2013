@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
+import itertools
 import json
+import regex as re
 import requests
 import time
-import itertools
 
 auth="?auth=0232BqcaQdAREtz6KHAt3AUaxcZQVpSKqgyW3A9cvpsH1H"
 urlBase="http://icfpc2013.cloudapp.net/"
@@ -37,78 +38,6 @@ def train(size=None,ops=None):
     r=requests.post(urlBase + "train" + auth,data=json.dumps(requestDict))
     return r.json()
 
-def solveSize3(progHash,ops):
-    op = unOpDict[ops[0]]
-    guess = "9e9e9e9e9e9e9e9e"
-    prog = '(lambda (x) (%s %s))'
-    evalDict={
-            'id':progHash,
-            'arguments':[guess]
-            }
-    r=requests.post(urlBase+"eval"+auth,data=json.dumps(evalDict))
-    j=r.json()
-    if j['status']!='ok':
-        print evalDict
-        print j
-        raise Exception
-    ans=hex2int(j['outputs'][0])
-    if ans==op(0):
-        val=0
-    if ans==op(1):
-        val=1
-    if ans==op(hex2int(guess)):
-        val='x'
-    prog = prog % (ops[0],val)
-    guessDict={
-            'id':progHash,
-            'program':prog,
-            }
-    r=requests.post(urlBase+"guess"+auth,data=json.dumps(guessDict))
-    j=r.json()
-    if j['status']=='win':
-        print "won! %s" % prog
-        return
-    else:
-        print "***FAIL***"
-        print evalDict
-        print guessDict
-        print j
-        raise Exception
-
-def solveSize4OneUnary(progHash,ops):
-    op = unOpDict[ops[0]]
-    guess = "9e9e9e9e9e9e9e9e"
-    prog = '(lambda (x) (%s (%s %s)))'
-    ans=evalHash(progHash,[guess])[0]
-    val={op(op(0)):0, op(op(1)):1, op(op(hex2int(guess))):'x'}[ans]
-    prog = prog % (ops[0],ops[0],val)
-    guessProg(progHash,prog)
-
-def solveSize4TwoUnary(progHash,ops):
-    op0=unOpDict[ops[0]]
-    op1=unOpDict[ops[1]]
-    guesses = ["9e9e9e9e9e9e9e9e","abcabcabcabcabca","1234567890123456"]
-    prog = '(lambda (x) (%s (%s %s)))'
-    anss=tuple(evalHash(progHash,guesses))
-    val = { (f1(f2(v[0])),f1(f2(v[1])),f1(f2(v[2]))):(f1s,f2s,v[3]) for (f1,f1s,f2,f2s) in [(op0,ops[0],op1,ops[1]),(op1,ops[1],op0,ops[0])] for v in [(0,0,0,0),(1,1,1,1),(hex2int(guesses[0]),hex2int(guesses[1]),hex2int(guesses[2]),'x')] }[anss]
-    prog = prog % val
-    guessProg(progHash,prog)
-    
-def solveSize4Binary(progHash,ops):
-    op = binOpDict[ops[0]]
-    guesses = map(int2hex,xrange(16))
-    prog = '(lambda (x) (%s %s %s))'
-    anss=tuple(evalHash(progHash,guesses))
-    possibilities = [0,1,'x']
-    val = {
-            tuple(op(hex2int(g) if v=='x' else v,hex2int(g) if w=='x' else w) for g in guesses)
-            :
-            (v,w)
-            for v in possibilities for w in possibilities
-            }[anss]
-    prog = prog % (ops[0],val[0],val[1])
-    guessProg(progHash,prog)
-
 def solveSmallEasy(progDesc):
     print "solving program %s" % progDesc['id']
     possibleProgs = progs(progDesc['operators'],progDesc['size'])
@@ -138,21 +67,10 @@ def solveSmallEasy(progDesc):
     print "couldn't determine the program!"
     raise Exception
 
-def arity(f):
-    if f in unOpDict:
-        return 0
-    elif f in binOpDict:
-        return 1
-    elif f=="if0":
-        return 2
-    else:
-        raise NotImplementedError
-            
-
 def fTrees(fs,size):
     if fs:
         if size==1:
-            return [('%s',[],lambda x: x[0])]
+            return [((None,1,'%s'),[])]
         elif size<=0:
             return []
         else:
@@ -161,7 +79,7 @@ def fTrees(fs,size):
                 if f in unOpDict:
                     function=unOpDict[f]
                     for fT in fTrees(fs,size-1):
-                        fTs.append(('(%s %s)' % (f,fT[0]),fT[1]+[f],compose(function,fT[2])))
+                        fTs.append((canonicalize((f,fT[0][1],[fT[0]])),fT[1]+[f]))
                 elif f in binOpDict:
                     if size>=3:
                         function = binOpDict[f]
@@ -169,38 +87,117 @@ def fTrees(fs,size):
                             for fT1 in fTrees(fs,i):
                                 argsNeeded = 1+sum(map(arity,fT1[1]))
                                 for fT2 in fTrees(fs,size-1-i):
-                                    fTs.append(('(%s %s %s)' % (f,fT1[0],fT2[0]),fT1[1]+fT2[1]+[f],compose2List(function,fT1[2],fT2[2],argsNeeded)))
+                                    fTs.append((canonicalize((f,fT1[0][1]+fT2[0][1],[fT1[0],fT2[0]])),fT1[1]+fT2[1]+[f]))
                 elif f=="if0":
                     if size>=4:
                         function = if0
                         for i in range(1,size-2):
                             for fT1 in fTrees(fs,i):
-                                cutoff1 = 1+sum(map(arity,fT1[1]))
                                 for j in range(1,size-1-i):
                                     for fT2 in fTrees(fs,j):
-                                        cutoff2 = cutoff1+1+sum(map(arity,fT2[1]))
                                         k=size-1-i-j
                                         for fT3 in fTrees(fs,k):
-                                            fTs.append(('(if0 %s %s %s)' % (fT1[0],fT2[0],fT3[0]),fT1[1]+fT2[1]+fT3[1]+[f],compose3List(if0,fT1[2],fT2[2],fT3[2],cutoff1,cutoff2)))
+                                            fTs.append((canonicalize((f,fT1[0][1]+fT2[0][1]+fT3[0][1],[fT1[0],fT2[0],fT3[0]])),fT1[1]+fT2[1]+fT3[1]+[f]))
 
 
                 else:
                     raise NotImplementedError, f
-        return fTs
+        return nub(fTs,0)
+
 
 def fullFTrees(fs,size):
-    return [(1+sum(map(arity,fT[1])),fT[0],fT[2]) for fT in fTrees(fs,size) if len(fs)==len(set(fT[1]))]
+    return [fT[0] for fT in fTrees(fs,size) if len(fs)==len(set(fT[1]))]
 
 def progs(fs,size):
-    def subInLambda(function,args):
-        return lambda x: function([i if i!='x' else x for i in args])
     primitives = [0,1,'x']
     progs = []
     for fT in fullFTrees(fs,size-1):
-        for args in itertools.product(primitives,repeat=fT[0]):
-            progs.append((("(lambda (x) "+fT[1]+")") % args,subInLambda(fT[2],args)))
-    return progs
+        for args in itertools.product(primitives,repeat=fT[1]):
+            subbed = canonicalize(subInExpr(fT,args),subbed=True)
+            formattedProg =("(lambda (x) "+stringify(subbed)+")")
+            progs.append((formattedProg,lambdify(subbed),subbed))
+    return nub(progs,0)
 
+def stringify(expr):
+    f,n,args = expr
+    if f==None:
+        return str(args)
+    else:
+        return "("+f+" "+" ".join(map(stringify,args))+")"
+
+def lambdify(expr):
+    f,n,args = expr
+    if f==None:
+        if args=='x':
+            return lambda x: x
+        else:
+            return lambda x: args
+    elif f in unOpDict:
+        return lambda x: unOpDict[f](lambdify(args[0])(x))
+    elif f in binOpDict:
+        return lambda x: binOpDict[f](lambdify(args[0])(x),lambdify(args[1])(x))
+    elif f=="if0":
+        return lambda x: if0(lambdify(args[0])(x),lambdify(args[1])(x),lambdify(args[2])(x))
+    else:
+        raise NotImplementedError
+
+def canonicalize(expr,subbed=False):
+    f,n,args = expr
+    if 'sort' in dir(args):
+        args=[canonicalize(a) for a in args]
+        if f in unOpDict:
+            if args[0][2] in [0,1]:
+                return (None,1,unOpDict[f](args[0][2]))
+        elif f in binOpDict:
+            if args[0][2] in [0,1] and args[1][2] in [0,1]:
+                return (None,1,binOpDict[f](args[0][2],args[1][2]))
+            elif args[0][2]==0:
+                if f=="and":
+                    return (None,0,0)
+                else:
+                    return args[1]
+            elif args[1][2]==0:
+                if f=="and":
+                    return (None,0,0)
+                else:
+                    return args[0]
+            elif subbed and args[0]==args[1]:
+                if f=="xor":
+                    return (None,0,0)
+                elif f=="plus":
+                    return ("shl1",args[0][1],[args[0]])
+                else:
+                    return args[0]
+            args.sort()
+        elif f=="if0":
+            if args[0][2]==0:
+                return args[1]
+            elif args[0][2]==1:
+                return args[2]
+            elif subbed and args[1]==args[2]:
+                return args[1]
+            elif args[0][2]=='x' and args[1][2]=='x' and args[2][2]=='0':
+                return (None,0,0)
+    return (expr[0],expr[1],args)
+
+def nub(l,i):
+    return {str(j[i]):j for j in l}.values()
+
+def subInExpr(expr,args):
+    f, n, aas = expr
+    if f==None:
+        if aas in [0,1]:
+            return expr
+        else:
+            return (f,n,args[0])
+    else:
+        newArgs = []
+        consumed=0
+        for aa in aas:
+            newArgs.append(subInExpr(aa,args[consumed:consumed+aa[1]]))
+            consumed+=aa[1]
+        return (f,n,newArgs)
+            
 
 def guessProg(progHash,prog,exception=True):
     print "guessing %s for %s..." % (prog,progHash),
