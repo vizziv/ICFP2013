@@ -27,6 +27,9 @@ def nofolds(p):
 def tfolds(p):
     return ('tfold' in p['operators'])
 
+def easytfolds(p):
+    return tfolds(p) and 'if0' not in p['operators']
+
 def easy(p):
     return all(o not in p['operators'] for o in ['fold','tfold','if0'])
 

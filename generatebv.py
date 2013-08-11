@@ -1,34 +1,44 @@
 from small_cases import *
 from bv import *
 
+exps_by_size = {}
+
 '''size is an int meaning program size
 ops is a list of strings representing operations,
 not including fold/tfold
 only works on size 8 right now'''
 def gen_tfold_prog(size, ops):
     #it's size-5 because program is 1, x is 1, 0 is 1, and fold is 2
+    exps_by_size.clear()
     return [Program('x', Fold(Variable('x'), Constant(0), exp, Variable('x'), \
                               Variable('y')))
-            for exp in gen_tfold_8(size-5, ops, ['x', 'y'])]
+            for exp in gen_nofold_exp(size-5, ops, ['x', 'y'])]
 
 def gen_nofold_exp(size, ops, all_vars):
+    if exps_by_size.get(size) != None:
+        return exps_by_size.get(size, id)
     if size<1:
         return []
     if size==1:
-        return [Variable(var) for var in all_vars] + [Constant(0), Constant(1)]
+        exps_by_size[size] = [Variable(var) for var in all_vars] + \
+                                   [Constant(0), Constant(1)]
+        return exps_by_size[size]
     else:
         exps = []
         for op in ops:
             if op in unops:
-                exps += [unops[op](exp) for exp in \
-                         gen_nofold_exp(size-1, ops, all_vars)]
+                exps_by_size[size-1] = exps1 = gen_nofold_exp(size-1, ops, all_vars)
+                exps += [unops[op](exp) for exp in exps1]
             elif op in binops:
-                exps2 = gen_nofold_exp(size-2, ops, all_vars)
-                for e in exps2:
-                    for f in exps2:
-                        pass
+                for i in xrange(1, size-1):
+                    exps_by_size[i] = exps1 = gen_nofold_exp(i, ops, all_vars)
+                    exps_by_size[size-i-1] = exps2 = \
+                                             gen_nofold_exp(size-i-1, ops, all_vars)
+                    exps += [binops[op](exp1, exp2) for exp1 in exps1 \
+                             for exp2 in exps2]
             elif op=="if0":
-                exps += If
+                raise NotImplementedError
+        return exps
 
 def gen_tfold_8(size, ops, all_vars):
     if size!= 3: raise Exception
@@ -66,8 +76,8 @@ def solve_small_tfold(progDesc):
         print "making guesses [%s,...,%s] ... " % (guesses[0],guesses[-1])
         anss = evalHash(progDesc['id'],guesses)
         #print zip(guesses, anss)
-        for p in possibleProgs:
-            print p
+        #for p in possibleProgs:
+        #    print p
 ##        poss = []
 ##        for prog in possibleProgs:
 ##            if all(prog.run(hex2int(guess))==ans for (guess, ans) in zip(guesses, anss)):
