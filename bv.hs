@@ -123,8 +123,8 @@ type Set a = [a]
 
 unapplyUnary :: UnaryOp -> Word64 -> Set Word64
 unapplyUnary Not = return . complement -- return gives singleton list
-unapplyUnary Shl1 = \n -> let nR = shiftR n 1 in if testBit n 0 == 0 then [nR, setBit nR 63] else []
-unapplyUnary Shr1 = \n -> let nL = shiftL n 1 in if testBit n 63 == 0 then [nL, setBit nL 0] else []
+unapplyUnary Shl1 = \n -> let nR = shiftR n 1 in if testBit n 0 then [nR, setBit nR 63] else []
+unapplyUnary Shr1 = \n -> let nL = shiftL n 1 in if testBit n 63 then [nL, setBit nL 0] else []
 unapplyUnary Shr4 = (unapplyUnary Shr1) >=> (unapplyUnary Shr1) >=> (unapplyUnary Shr1) >=> (unapplyUnary Shr1)
 unapplyUnary Shr16 = (unapplyUnary Shr4) >=> (unapplyUnary Shr4) >=> (unapplyUnary Shr4) >=> (unapplyUnary Shr4)
 
