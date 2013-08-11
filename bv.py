@@ -48,6 +48,12 @@ class Constant(Expression):
             return self.value
         return go
 
+    def equals(self, other):
+        if not isinstance(other, Constant):
+            return False
+        else:
+            return self.value==other.value
+
 class Variable(Expression):
 
     #value is a string
@@ -64,6 +70,12 @@ class Variable(Expression):
             #haven't fully thought thorough, but might be fine?
             return args[self.value]
         return go
+
+    def equals(self, other):
+        if not isinstance(other, Variable):
+            return False
+        else:
+            return self.value==other.value
 
 class If(Expression):
 
@@ -84,6 +96,14 @@ class If(Expression):
             else:
                 return self.exp2.run()(args)
         return go
+
+    def equals(self, other):
+        if not isinstance(other, If):
+            return False
+        else:
+            return self.exp0.equals(other.exp0) \
+                   and self.exp1.equals(other.exp1) \
+                   and self.exp2.equals(other.exp2)
 
 class Fold(Expression):
 
@@ -110,6 +130,10 @@ class Fold(Expression):
                 acc = self.exp2.run()(newargs)
             return acc
         return go
+
+    #lazy because this shouldn't matter
+    def equals(self, other):
+        return False
             
 
 class Op1(Expression):
@@ -135,6 +159,12 @@ class Not(Op1):
             return maxInt - 1 - self.exp.run()(args)
         return go
 
+    def equals(self, other):
+        if not isinstance(other, Not):
+            return False
+        else:
+            return self.exp.equals(other.exp)
+
 class Shl1(Op1):
 
     def __str__(self):
@@ -144,6 +174,16 @@ class Shl1(Op1):
         def go(args):
             return (self.exp.run()(args) << 1) % maxInt
         return go
+
+    def equals(self, other):
+        if not isinstance(other, Op1):
+            return False
+        elif isinstance(self.exp, Constant):
+            return self.exp.value==0 and \
+                   (isinstance(other, Shr1) or isinstance(other, Shr4) \
+                    or isinstance(other, Shr16))
+        else:
+            return isinstance(other, Shl1) and self.exp.equals(other.exp)
 
 class Shr1(Op1):
 
@@ -155,6 +195,16 @@ class Shr1(Op1):
             return self.exp.run()(args) >> 1
         return go
 
+    def equals(self, other):
+        if not isinstance(other, Op1):
+            return False
+        elif isinstance(self.exp, Constant):
+            return self.exp.value==0 and \
+                   (isinstance(other, Shl1) or isinstance(other, Shr4) \
+                    or isinstance(other, Shr16))
+        else:
+            return isinstance(other, Shr1) and self.exp.equals(other.exp)
+
 class Shr4(Op1):
 
     def __str__(self):
@@ -164,6 +214,16 @@ class Shr4(Op1):
         def go(args):
             return self.exp.run()(args) >> 4
         return go
+
+    def equals(self, other):
+        if not isinstance(other, Op1):
+            return False
+        elif isinstance(self.exp, Constant):
+            return self.exp.value==0 and \
+                   (isinstance(other, Shr1) or isinstance(other, Shl1) \
+                    or isinstance(other, Shr16))
+        else:
+            return isinstance(other, Shr4) and self.exp.equals(other.exp)
 
 class Shr16(Op1):
 
@@ -175,6 +235,16 @@ class Shr16(Op1):
             return self.exp.run()(args) >> 16
         return go
 
+    def equals(self, other):
+        if not isinstance(other, Op1):
+            return False
+        elif isinstance(self.exp, Constant):
+            return self.exp.value==0 and \
+                   (isinstance(other, Shr1) or isinstance(other, Shr4) \
+                    or isinstance(other, Shl1))
+        else:
+            return isinstance(other, Shr16) and self.exp.equals(other.exp)
+
 class And(Op2):
 
     def __str__(self):
@@ -184,6 +254,10 @@ class And(Op2):
         def go(args):
             return self.exp0.run()(args) & self.exp1.run()(args)
         return go
+
+    def equals(self, other):
+        return isinstance(other, And) and self.exp0.equals(other.exp0) \
+               and self.exp1.equals(other.exp1)
 
 class Or(Op2):
 
@@ -195,6 +269,10 @@ class Or(Op2):
             return self.exp0.run()(args) | self.exp1.run()(args)
         return go
 
+    def equals(self, other):
+        return isinstance(other, Or) and self.exp0.equals(other.exp0) \
+               and self.exp1.equals(other.exp1)
+
 class Xor(Op2):
 
     def __str__(self):
@@ -205,6 +283,10 @@ class Xor(Op2):
             return self.exp0.run()(args) ^ self.exp1.run()(args)
         return go
 
+    def equals(self, other):
+        return isinstance(other, Xor) and self.exp0.equals(other.exp0) \
+               and self.exp1.equals(other.exp1)
+
 class Plus(Op2):
 
     def __str__(self):
@@ -214,4 +296,8 @@ class Plus(Op2):
         def go(args):
             return (self.exp0.run()(args) + self.exp1.run()(args)) % maxInt
         return go
+
+    def equals(self, other):
+        return isinstance(other, Plus) and self.exp0.equals(other.exp0) \
+               and self.exp1.equals(other.exp1)
     

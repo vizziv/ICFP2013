@@ -28,14 +28,16 @@ def gen_nofold_exp(size, ops, all_vars):
         for op in ops:
             if op in unops:
                 exps_by_size[size-1] = exps1 = gen_nofold_exp(size-1, ops, all_vars)
-                exps += [unops[op](exp) for exp in exps1]
+                exps += [unops[op](exp) for exp in exps1 if \
+                         all(not unops[op](exp).equals(e) for e in exps)]
             elif op in binops:
                 for i in xrange(1, size-1):
                     exps_by_size[i] = exps1 = gen_nofold_exp(i, ops, all_vars)
                     exps_by_size[size-i-1] = exps2 = \
                                              gen_nofold_exp(size-i-1, ops, all_vars)
                     exps += [binops[op](exp1, exp2) for exp1 in exps1 \
-                             for exp2 in exps2]
+                             for exp2 in exps2 if \
+                             all(not binops[op](exp1, exp2).equals(e) for e in exps)]
             elif op=="if0":
                 raise NotImplementedError
         return exps
@@ -98,8 +100,9 @@ def solve_small_tfold(progDesc):
                     else:
                         possibleProgs = [prog for prog in possibleProgs if prog.run(hex2int(mism[0]))==hex2int(mism[1])]
                         possibleProgStrings = [str(prog) for x in possibleProgs]
-                        time.sleep(100)
+                        time.sleep(10)
         print "possibilities:\n"+"\n".join([str(prog) for p in possibleProgs])
+        time.sleep(3)
     print "couldn't determine the program!"
     raise Exception
 
