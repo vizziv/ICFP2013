@@ -18,10 +18,14 @@ def getproblems():
 
 def unsolved(size=None,pred=None):
     '''Returns problems of size `size` (None returns all) and matching predicate pred (e.g. nofolds)'''
-    return [i for i in getproblems() if ('solved' not in i or not i['solved']) and ('timeLeft' not in i or i['timeLeft']>0) and (size is None or i['size']==size) and (pred is None or pred(i))]
+    return [i for i in getproblems() if ('solved' not in i or not i['solved']) and \
+            ('timeLeft' not in i or i['timeLeft']>0) and (size is None or i['size']==size) and (pred is None or pred(i))]
 
 def nofolds(p):
     return all(o not in p['operators'] for o in ['fold','tfold'])
+
+def tfolds(p):
+    return ('tfold' in p['operators'])
 
 def easy(p):
     return all(o not in p['operators'] for o in ['fold','tfold','if0'])

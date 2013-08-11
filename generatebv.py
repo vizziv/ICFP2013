@@ -88,7 +88,7 @@ def solve_small_tfold(progDesc):
                     else:
                         possibleProgs = [prog for prog in possibleProgs if prog.run(hex2int(mism[0]))==hex2int(mism[1])]
                         possibleProgStrings = [str(prog) for x in possibleProgs]
-                        time.sleep(10)
+                        time.sleep(100)
         print "possibilities:\n"+"\n".join([str(prog) for p in possibleProgs])
     print "couldn't determine the program!"
     raise Exception
