@@ -1,8 +1,16 @@
+module BV where
+
 import Control.Monad
 import Control.Monad.Reader
 import Data.Bits
 import Data.Char (toLower)
 import Data.Maybe (fromJust)
+import Data.List (sort)
+-- This next one is from the tubes. (Actually, never mind for now, but this might go back in.)
+-- Acts just like Data.Set, but somehow hacks in a Monad instance (resembling that for lists).
+-- http://hackage.haskell.org/package/set-monad
+-- cabal install set-monad
+-- import qualified Data.Set.Monad as Set
 import Data.Word (Word64)
 import Text.Printf (printf)
 
@@ -106,14 +114,19 @@ applyBinary Or = (.|.)
 applyBinary Xor = xor
 applyBinary Plus = (+)
 
--- Aliases because ziv is lazy.
-program = Program Input
-fold bytes initial = Fold bytes initial Byte Acc
-tfold = program . fold (Var Input) Zero
+-----------------------------------------
+-- Attempt at actually solving things! --
+-----------------------------------------
 
--- Reverses the bytes of the input.
--- The program is equivalent to foldl (\xs x -> xs*256 + x) 0 . toBytes
-main = print $ eval (tfold
-                     (BF Plus (Var Byte)
-                      (UF Shl1 . UF Shl1 . UF Shl1 . UF Shl1 . UF Shl1 . UF Shl1 . UF Shl1 . UF Shl1 $
-                       (Var Acc)))) 2553
+-- Will change to something fancier (like actual sets) if necessary.
+type Set a = [a]
+
+unapplyUnary :: UnaryOp -> Word64 -> Set Word64
+unapplyUnary Not = return . complement -- return gives singleton list
+unapplyUnary Shl1 = \n -> let nR = shiftR n 1 in if testBit n 0 == 0 then [nR, setBit nR 63] else []
+unapplyUnary Shr1 = \n -> let nL = shiftL n 1 in if testBit n 63 == 0 then [nL, setBit nL 0] else []
+unapplyUnary Shr4 = (unapplyUnary Shr1) >=> (unapplyUnary Shr1) >=> (unapplyUnary Shr1) >=> (unapplyUnary Shr1)
+unapplyUnary Shr16 = (unapplyUnary Shr4) >=> (unapplyUnary Shr4) >=> (unapplyUnary Shr4) >=> (unapplyUnary Shr4)
+
+--unapplyBinary :: BinaryOp -> Word64 -> Set.Set (Word64,Word64)
+--unapplyBinary And = 
